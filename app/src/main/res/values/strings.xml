@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">NCM自动领歌</string>
+    <string name="accessibility_desc">网易云音乐免费听歌广告辅助服务，用于自动识别并点击领取按钮。</string>
+</resources>

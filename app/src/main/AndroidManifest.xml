@@ -1,11 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- 基础 -->
+    <!-- 基础权限 -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>
-    <!-- Android 13+ 通知（前台服务需要） -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 
     <application
@@ -13,6 +12,7 @@
         android:label="NCM自动领歌"
         android:theme="@style/Theme.AppCompat.NoActionBar">
 
+        <!-- 主入口 -->
         <activity
             android:name=".MainActivity"
             android:exported="true">
@@ -26,7 +26,8 @@
         <service
             android:name=".service.NcmAdService"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
-            android:exported="true">
+            android:exported="true"
+            android:foregroundServiceType="specialUse">
             <intent-filter>
                 <action android:name="android.accessibilityservice.AccessibilityService"/>
             </intent-filter>
@@ -35,7 +36,7 @@
                 android:resource="@xml/accessibility_config"/>
         </service>
 
-        <!-- 悬浮窗服务（普通服务，不强制前台，防闪退） -->
+        <!-- 悬浮窗服务 -->
         <service
             android:name=".service.OverlayService"
             android:exported="false"

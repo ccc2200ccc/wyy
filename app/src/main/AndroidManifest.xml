@@ -6,7 +6,6 @@
 
     <application
         android:allowBackup="true"
-        android:icon="@mipmap/ic_launcher"
         android:label="NCM自动领歌"
         android:theme="@style/Theme.AppCompat.NoActionBar">
 

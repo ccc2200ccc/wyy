@@ -4,6 +4,5 @@
     android:accessibilityFeedbackType="feedbackGeneric"
     android:accessibilityFlags="flagDefault|flagRetrieveInteractiveWindows"
     android:canRetrieveWindowContent="true"
-    android:description="网易云自动领歌"
     android:notificationTimeout="100"
     android:packageNames="com.netease.cloudmusic"/>

@@ -5,6 +5,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.os.Build
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 
@@ -25,15 +26,19 @@ class NcmAdService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         if (!receiverRegistered) {
-            registerReceiver(receiver, IntentFilter("com.ncm.autoclaim.CLICK"))
+            val filter = IntentFilter("com.ncm.autoclaim.CLICK")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                // Android 12+ 必须指定导出标志，否则 SecurityException 闪退
+                registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED)
+            } else {
+                registerReceiver(receiver, filter)
+            }
             receiverRegistered = true
         }
     }
 
-    // 保底方案：节点点击（不依赖 GestureDescription）
     private fun tap(x: Int, y: Int) {
         val root = rootInActiveWindow ?: return
-        // 优先按文本找（领取/看广告），找不到则按坐标找节点
         val targetTexts = listOf("领取", "看广告", "去逛逛", "关闭")
         var node: AccessibilityNodeInfo? = null
         
@@ -41,29 +46,32 @@ class NcmAdService : AccessibilityService() {
             val list = root.findAccessibilityNodeInfosByText(text)
             if (list.isNotEmpty()) {
                 node = list.first()
+                list.drop(1).forEach { it.recycle() } // 回收多余节点
                 break
             }
         }
         
         if (node == null) {
-            // 坐标兜底：遍历节点找包含坐标的可点击项
             node = findNodeAt(root, x, y)
         }
         
-        node?.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+        node?.let {
+            if (it.isClickable) it.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+            it.recycle() // 必须回收，防 Binder 泄漏
+        }
+        root.recycle()
     }
 
     private fun findNodeAt(root: AccessibilityNodeInfo, x: Int, y: Int): AccessibilityNodeInfo? {
-        if (root.childCount == 0) {
-            val bounds = android.graphics.Rect()
-            root.getBoundsInScreen(bounds)
-            if (bounds.contains(x, y) && root.isClickable) return root
-            return null
-        }
+        val bounds = android.graphics.Rect()
+        root.getBoundsInScreen(bounds)
+        if (root.childCount == 0 && bounds.contains(x, y) && root.isClickable) return root
+        
         for (i in 0 until root.childCount) {
             val child = root.getChild(i) ?: continue
             val found = findNodeAt(child, x, y)
             if (found != null) return found
+            child.recycle()
         }
         return null
     }

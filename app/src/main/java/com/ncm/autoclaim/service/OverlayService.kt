@@ -1,5 +1,6 @@
 package com.ncm.autoclaim.service
 
+import android.accessibilityservice.AccessibilityService
 import android.app.Service
 import android.content.Intent
 import android.graphics.Color
@@ -9,43 +10,37 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.view.Gravity
-import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.widget.Button
+import com.ncm.autoclaim.MainActivity
 
 class OverlayService : Service() {
 
     private lateinit var wm: WindowManager
-    private lateinit var btn: Button
+    private lateinit var button: Button
     private val handler = Handler(Looper.getMainLooper())
 
-    // ===== 你的坐标（已取整）=====
-    private val entryX = 1122   // 右上角广告入口
-    private val entryY = 243
+    // 你的坐标（四舍五入转Int）
+    private val entryX = 1122; private val entryY = 243
+    private val claimX = 449;  private val claimY = 882
+    private val close1X = 619; private val close1Y = 2143
+    private val close2X = 1053; private val close2Y = 1338
 
-    private val claimX = 449    // 5秒后领取
-    private val claimY = 882
-
-    private val close1X = 619   // 第一次关闭
-    private val close1Y = 2143
-
-    private val close2X = 1053  // 第二次关闭
-    private val close2Y = 1338
-    // ===========================
-
-    private var isRunning = false
+    override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
         super.onCreate()
         wm = getSystemService(WINDOW_SERVICE) as WindowManager
+        showButton()
+    }
 
-        btn = Button(this).apply {
+    private fun showButton() {
+        button = Button(this).apply {
             text = "领歌"
-            setBackgroundColor(Color.parseColor("#FF2196F3"))
+            setBackgroundColor(Color.parseColor("#CC2196F3"))
             setTextColor(Color.WHITE)
-            textSize = 13f
-            setPadding(30, 20, 30, 20)
+            setOnClickListener { startAutoClick() }
         }
 
         val params = WindowManager.LayoutParams(
@@ -58,79 +53,35 @@ class OverlayService : Service() {
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
             PixelFormat.TRANSLUCENT
         ).apply {
-            gravity = Gravity.TOP or Gravity.START
-            x = 50
-            y = 400
+            gravity = Gravity.TOP or Gravity.END
+            x = 30; y = 200
         }
-
-        // 拖动
-        btn.setOnTouchListener(object : View.OnTouchListener {
-            private var initX = 0
-            private var initY = 0
-            private var touchX = 0f
-            private var touchY = 0f
-
-            override fun onTouch(v: View?, e: MotionEvent): Boolean {
-                when (e.action) {
-                    MotionEvent.ACTION_DOWN -> {
-                        initX = params.x
-                        initY = params.y
-                        touchX = e.rawX
-                        touchY = e.rawY
-                        return true
-                    }
-                    MotionEvent.ACTION_MOVE -> {
-                        params.x = initX + (e.rawX - touchX).toInt()
-                        params.y = initY + (e.rawY - touchY).toInt()
-                        wm.updateViewLayout(btn, params)
-                        return true
-                    }
-                }
-                return false
-            }
-        })
-
-        // 点击 = 开始自动流程
-        btn.setOnClickListener {
-            if (!isRunning) {
-                startFlow()
-            }
-        }
-
-        wm.addView(btn, params)
+        wm.addView(button, params)
     }
 
-    private fun startFlow() {
-        isRunning = true
-        btn.text = "执行中"
-        btn.setBackgroundColor(Color.parseColor("#FFFF9800"))
+    private fun startAutoClick() {
+        button.text = "执行中.."
+        button.setBackgroundColor(Color.parseColor("#CCC62828"))
 
-        // ① 点广告入口
+        // 1. 点右上角广告入口
         sendClick(entryX, entryY)
 
-        // ② 等5秒 → 点领取
+        // 2. 等5秒广告，点领取
         handler.postDelayed({
             sendClick(claimX, claimY)
 
-            // ③ 等0.8秒 → 第一次关闭
+            // 3. 点第一次关闭
             handler.postDelayed({
                 sendClick(close1X, close1Y)
 
-                // ④ 等0.8秒 → 第二次关闭
+                // 4. 点第二次关闭
                 handler.postDelayed({
                     sendClick(close2X, close2Y)
 
                     // 完成
                     handler.postDelayed({
-                        isRunning = false
-                        btn.text = "完成✓"
-                        btn.setBackgroundColor(Color.parseColor("#FF4CAF50")
-
-                        // 3秒后恢复
-                        handler.postDelayed({
-                            btn.text = "领歌"
-                            btn.setBackgroundColor(Color.parseColor("#FF2196F3"))
-                        }, 3000)
+                        button.text = "完成✓"
+                        button.setBackgroundColor(Color.parseColor("#CC4CAF50"))
                     }, 500)
                 }, 800)
             }, 800)
@@ -145,11 +96,9 @@ class OverlayService : Service() {
         sendBroadcast(intent)
     }
 
-    override fun onBind(intent: Intent?): IBinder? = null
-
     override fun onDestroy() {
         super.onDestroy()
-        if (::btn.isInitialized) wm.removeView(btn)
+        if (::button.isInitialized) wm.removeView(button)
         handler.removeCallbacksAndMessages(null)
     }
 }

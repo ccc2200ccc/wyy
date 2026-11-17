@@ -1,7 +1,7 @@
 package com.ncm.autoclaim.service
 
-import android.accessibilityservice.AccessibilityService
 import android.app.Service
+import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.PixelFormat
@@ -9,19 +9,19 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.provider.Settings
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
 import android.widget.Button
-import com.ncm.autoclaim.MainActivity
 
 class OverlayService : Service() {
 
     private lateinit var wm: WindowManager
-    private lateinit var button: Button
+    private var button: Button? = null
     private val handler = Handler(Looper.getMainLooper())
 
-    // 你的坐标（四舍五入转Int）
+    // 坐标
     private val entryX = 1122; private val entryY = 243
     private val claimX = 449;  private val claimY = 882
     private val close1X = 619; private val close1Y = 2143
@@ -31,11 +31,17 @@ class OverlayService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        wm = getSystemService(WINDOW_SERVICE) as WindowManager
+        wm = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        // 检查悬浮窗权限，没有就结束（不闪退）
+        if (!Settings.canDrawOverlays(this)) {
+            stopSelf()
+            return
+        }
         showButton()
     }
 
     private fun showButton() {
+        if (button != null) return
         button = Button(this).apply {
             text = "领歌"
             setBackgroundColor(Color.parseColor("#CC2196F3"))
@@ -56,32 +62,29 @@ class OverlayService : Service() {
             gravity = Gravity.TOP or Gravity.END
             x = 30; y = 200
         }
-        wm.addView(button, params)
+        try {
+            wm.addView(button, params)
+        } catch (e: Exception) {
+            // 容错，避免 addView 异常闪退
+            button = null
+        }
     }
 
     private fun startAutoClick() {
-        button.text = "执行中.."
-        button.setBackgroundColor(Color.parseColor("#CCC62828"))
+        val btn = button ?: return
+        btn.text = "执行中.."
+        btn.setBackgroundColor(Color.parseColor("#CCC62828"))
 
-        // 1. 点右上角广告入口
         sendClick(entryX, entryY)
-
-        // 2. 等5秒广告，点领取
         handler.postDelayed({
             sendClick(claimX, claimY)
-
-            // 3. 点第一次关闭
             handler.postDelayed({
                 sendClick(close1X, close1Y)
-
-                // 4. 点第二次关闭
                 handler.postDelayed({
                     sendClick(close2X, close2Y)
-
-                    // 完成
                     handler.postDelayed({
-                        button.text = "完成✓"
-                        button.setBackgroundColor(Color.parseColor("#CC4CAF50"))
+                        btn.text = "完成✓"
+                        btn.setBackgroundColor(Color.parseColor("#CC4CAF50"))
                     }, 500)
                 }, 800)
             }, 800)
@@ -98,7 +101,10 @@ class OverlayService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        if (::button.isInitialized) wm.removeView(button)
         handler.removeCallbacksAndMessages(null)
+        button?.let {
+            try { wm.removeView(it) } catch (e: Exception) {}
+        }
+        button = null
     }
 }

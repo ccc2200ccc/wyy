@@ -1,12 +1,12 @@
 package com.ncm.autoclaim.service
 
 import android.accessibilityservice.AccessibilityService
-import android.accessibilityservice.GestureDescription
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.graphics.Path
+import android.view.accessibility.AccessibilityEvent
 
 class NcmAdService : AccessibilityService() {
 
@@ -20,9 +20,14 @@ class NcmAdService : AccessibilityService() {
         }
     }
 
+    private var receiverRegistered = false
+
     override fun onServiceConnected() {
         super.onServiceConnected()
-        registerReceiver(receiver, IntentFilter("com.ncm.autoclaim.CLICK"))
+        if (!receiverRegistered) {
+            registerReceiver(receiver, IntentFilter("com.ncm.autoclaim.CLICK"))
+            receiverRegistered = true
+        }
     }
 
     private fun tap(x: Int, y: Int) {
@@ -33,12 +38,15 @@ class NcmAdService : AccessibilityService() {
         dispatchGesture(gesture, null, null)
     }
 
-    override fun onAccessibilityEvent(event: android.view.accessibility.AccessibilityEvent?) {}
+    override fun onAccessibilityEvent(event: AccessibilityEvent?) {}
 
     override fun onInterrupt() {}
 
     override fun onDestroy() {
         super.onDestroy()
-        unregisterReceiver(receiver)
+        if (receiverRegistered) {
+            try { unregisterReceiver(receiver) } catch (e: Exception) {}
+            receiverRegistered = false
+        }
     }
 }

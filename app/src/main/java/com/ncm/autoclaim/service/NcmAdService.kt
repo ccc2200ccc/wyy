@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.graphics.Path
 import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.GestureDescription
 
 class NcmAdService : AccessibilityService() {
 
